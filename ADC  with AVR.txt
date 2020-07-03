@@ -1,0 +1,80 @@
+/*
+ Target Device: ATmega 328P
+
+ Description: this program is used to displays the Analog and digital values at a power supply and a battery using two channels with ADC.
+ */
+ 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+
+volatile unsigned int D1; // D1 = Power Supply Voltage
+volatile unsigned int D2; // D2 = Battery Voltage 
+volatile float AA=0; // AA = analog value of power supply Voltage
+volatile float AAA=0; // AA = analog value of battery value
+
+void setup() {
+  
+  setTimer();
+  ADCSRA = 0;
+  ADCSRA |= (( 1 << ADPS0 ) | ( 1 << ADPS1 ) | ( 1 << ADPS2 )|(1<<ADIE)|(1<<ADATE)); //ADC prescalar = 128, ADC interrupt enabled, Auto Trigger Enabled 
+  ADMUX=0;
+  ADCSRB = 0;
+  ADCSRB |= (( 1 << ADTS0 ) | ( 1 << ADTS2 )); //ADC Auto Trigger Source Selection for Timer/Counter1 Compare Match B
+  ADMUX |= (( 1 << REFS0 ) | ( 1 << ADLAR ));
+  Serial.begin(9600);
+  ADCSRA |= ( 1 << ADEN );//enable ADC
+  TCCR1B|=(1<<CS11);//start the timer
+}
+
+void loop() { 
+   
+  Serial.print("Power Supply Voltage = ");
+  Serial.print(D1);
+  delay(2000);
+  Serial.print("  ,analog value=  "); 
+  Serial.println(AA);
+  Serial.print("Battery Voltage = ");
+  Serial.print(D2);
+  Serial.print("  ,analog value=  "); 
+  Serial.println(AAA);
+  delay(2000);
+  
+   
+}
+void setTimer(void)
+{
+  TCCR1A = 0;
+  TCCR1B = 0;
+  
+  cli();
+  
+  TCNT1 = 0;
+  OCR1B = 20000;
+  TIMSK1 |= ( 1 << OCIE1B );
+  
+  sei();
+}
+
+ISR(TIMER1_COMPB_vect)
+{
+    TCNT1 = 0;   
+}
+
+ISR(ADC_vect)
+{
+  
+  if(ADMUX & (1<<MUX0)!=0){
+   D1=ADCH;
+   AA= ( D1/ 255.0 ) * 5.0 ;  
+   ADMUX &=~(1<<MUX0);
+   }
+  
+   else 
+   {
+   D2=ADCH;
+   AAA = ( D2/ 255.0 ) * 5.0 ;
+   ADMUX|= (1<<MUX0);
+   }
+    
+}
